@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FireCracker & Fresh Store</title>
+    <link rel="icon" type="image/png" href="ico.png" />
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation Header -->
+    <header class="navbar glass-effect">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <h1 class="brand-title">🎆 FireCracker & Fresh</h1>
+            </div>
+            
+            <div class="nav-center">
+                <div class="search-container">
+                    <input type="text" id="searchInput" placeholder="Search products..." class="search-input">
+                    <button class="search-btn">🔍</button>
+                </div>
+            </div>
+            
+            <div class="nav-actions">
+                <button id="themeToggle" class="theme-toggle glass-btn" aria-label="Toggle theme">
+                    <span class="theme-icon">🌙</span>
+                </button>
+                <button id="adminBtn" class="admin-btn glass-btn">Admin</button>
+                <button id="cartToggle" class="cart-btn glass-btn">
+                    <span class="cart-icon">🛒</span>
+                    <span id="cartCount" class="cart-count">0</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Category Filter Section -->
+    <section class="filter-section">
+        <div class="container">
+            <div class="filter-buttons">
+                <button class="filter-btn active" data-category="All">All Products</button>
+                <button class="filter-btn" data-category="Firecrackers">🎆 Firecrackers</button>
+                <button class="filter-btn" data-category="Vegetables">🥕 Vegetables</button>
+                <button class="filter-btn" data-category="Fruits">🍎 Fruits</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Product Grid -->
+    <main class="main-content">
+        <div class="container">
+            <div class="hero-section">
+                <h2 class="hero-title">Fresh Products & Premium Firecrackers</h2>
+                <p class="hero-subtitle">Quality products delivered with modern shopping experience</p>
+            </div>
+            
+            <div id="productGrid" class="product-grid">
+                <!-- Products will be dynamically loaded here -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Cart Sidebar -->
+    <div id="cartSidebar" class="cart-sidebar">
+        <div class="cart-content glass-effect">
+            <div class="cart-header">
+                <h3>Shopping Cart</h3>
+                <button id="closeCart" class="close-cart">✕</button>
+            </div>
+            
+            <div id="cartItems" class="cart-items">
+                <!-- Cart items will be displayed here -->
+            </div>
+            
+            <div class="cart-footer">
+                <div class="cart-total">
+                    <strong>Total: ₹<span id="cartTotal">0</span></strong>
+                </div>
+                <div class="cart-actions">
+                    <button id="clearCart" class="btn-secondary">Clear Cart</button>
+                    <button id="whatsappOrder" class="btn-primary">Order via WhatsApp</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Login Modal -->
+    <div id="adminModal" class="modal">
+        <div class="modal-content glass-effect">
+            <div class="modal-header">
+                <h3>Admin Login</h3>
+                <button id="closeAdminModal" class="close-modal">✕</button>
+            </div>
+            <form id="adminLoginForm">
+                <div class="form-group">
+                    <label for="adminPassword">Password:</label>
+                    <input type="password" id="adminPassword" placeholder="Enter admin password" required>
+                </div>
+                <button type="submit" class="btn-primary">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin Panel Modal -->
+    <div id="adminPanel" class="modal">
+        <div class="modal-content glass-effect large-modal">
+            <div class="modal-header">
+                <h3>Admin Panel</h3>
+                <div class="admin-actions">
+                    <button id="logoutAdmin" class="btn-secondary">Logout</button>
+                    <button id="closeAdminPanel" class="close-modal">✕</button>
+                </div>
+            </div>
+            
+            <div class="admin-tabs">
+                <button class="tab-btn active" data-tab="manage">Manage Products</button>
+                <button class="tab-btn" data-tab="add">Add Product</button>
+            </div>
+            
+            <!-- Manage Products Tab -->
+            <div id="manageTab" class="tab-content active">
+                <div id="adminProductList" class="admin-product-list">
+                    <!-- Admin product list will be displayed here -->
+                </div>
+            </div>
+            
+            <!-- Add Product Tab -->
+            <div id="addTab" class="tab-content">
+                <form id="addProductForm" class="add-product-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="productName">Product Name:</label>
+                            <input type="text" id="productName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="productPrice">Price (₹):</label>
+                            <input type="number" id="productPrice" min="1" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="productCategory">Category:</label>
+                            <select id="productCategory" required>
+                                <option value="Firecrackers">Firecrackers</option>
+                                <option value="Vegetables">Vegetables</option>
+                                <option value="Fruits">Fruits</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="productUnit">Unit:</label>
+                            <select id="productUnit" required>
+                                <option value="piece">Piece</option>
+                                <option value="kg">Kg</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="productImage">Image URL:</label>
+                        <input type="url" id="productImage" placeholder="Enter image URL">
+                    </div>
+                    <button type="submit" class="btn-primary">Add Product</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Product Modal -->
+    <div id="editProductModal" class="modal">
+        <div class="modal-content glass-effect">
+            <div class="modal-header">
+                <h3>Edit Product</h3>
+                <button id="closeEditModal" class="close-modal">✕</button>
+            </div>
+            <form id="editProductForm">
+                <div class="form-group">
+                    <label for="editProductName">Product Name:</label>
+                    <input type="text" id="editProductName" required>
+                </div>
+                <div class="form-group">
+                    <label for="editProductPrice">Price (₹):</label>
+                    <input type="number" id="editProductPrice" min="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="editProductCategory">Category:</label>
+                    <select id="editProductCategory" required>
+                        <option value="Firecrackers">Firecrackers</option>
+                        <option value="Vegetables">Vegetables</option>
+                        <option value="Fruits">Fruits</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="editProductUnit">Unit:</label>
+                    <select id="editProductUnit" required>
+                        <option value="piece">Piece</option>
+                        <option value="kg">Kg</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="editProductImage">Image URL:</label>
+                    <input type="url" id="editProductImage">
+                </div>
+                <button type="submit" class="btn-primary">Update Product</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast glass-effect">
+        <span id="toastMessage"></span>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

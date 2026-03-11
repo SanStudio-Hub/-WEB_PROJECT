@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learning Schedule Generator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @media (max-width: 768px) {
+            .container-custom {
+                padding: 0 1rem;
+            }
+        }
+        .skill-priority-High { border-left: 4px solid #ef4444; }
+        .skill-priority-Medium { border-left: 4px solid #f59e0b; }
+        .skill-priority-Low { border-left: 4px solid #10b981; }
+        .toast {
+            animation: fadeInOut 3s forwards;
+            bottom: 2rem;
+            right: 2rem;
+        }
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(20px); }
+            10% { opacity: 1; transform: translateY(0); }
+            90% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(20px); }
+        }
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            .print-mode {
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            .schedule-table {
+                page-break-inside: avoid;
+            }
+        }
+        .toggle-bg:after {
+            content: '';
+            @apply absolute top-0.5 left-0.5 bg-white border border-gray-300 rounded-full h-5 w-5 transition shadow-sm;
+        }
+        input:checked + .toggle-bg:after {
+            transform: translateX(100%);
+            @apply border-white;
+        }
+        input:checked + .toggle-bg {
+            @apply bg-primary-600 border-primary-600;
+        }
+        .progress-bar {
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            background-color: #e5e7eb;
+        }
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        .task-completed {
+            text-decoration: line-through;
+            opacity: 0.7;
+        }
+        .current-task {
+            background-color: #dbeafe !important;
+            border-left: 4px solid #3b82f6;
+        }
+        .upcoming-task {
+            opacity: 0.9;
+        }
+        .completed-task {
+            opacity: 0.6;
+        }
+        .train-track {
+            position: relative;
+            height: 40px;
+            background: #e5e7eb;
+            border-radius: 5px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        .train-station {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: #9ca3af;
+            border-radius: 50%;
+            top: 10px;
+            transform: translateX(-50%);
+        }
+        .train-station.active {
+            background: #3b82f6;
+            box-shadow: 0 0 0 4px #bfdbfe;
+        }
+        .train-station.completed {
+            background: #10b981;
+        }
+        .train {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: #ef4444;
+            border-radius: 8px;
+            top: 5px;
+            left: 0;
+            transform: translateX(-50%);
+            transition: left 1s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        .station-label {
+            position: absolute;
+            top: -25px;
+            left: 0;
+            transform: translateX(-50%);
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        .time-label {
+            position: absolute;
+            bottom: -25px;
+            left: 0;
+            transform: translateX(-50%);
+            font-size: 12px;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-200 transition-colors duration-200">
+    <header class="bg-white dark:bg-gray-800 shadow-md relative">
+        <div class="container mx-auto px-4 py-6">
+            <h1 class="text-3xl font-bold text-primary-700 dark:text-primary-400">Learning Schedule Generator</h1>
+            <p class="text-gray-600 dark:text-gray-300">Plan your daily or monthly learning with AI-powered scheduling</p>
+            
+            <!-- Live Time Display -->
+            <div class="absolute top-4 right-4 bg-primary-100 dark:bg-primary-900 py-2 px-4 rounded-lg">
+                <div id="live-date" class="text-sm text-primary-800 dark:text-primary-200 font-medium"></div>
+                <div id="live-time" class="text-2xl text-primary-700 dark:text-primary-300 font-bold"></div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8 container-custom">
+        <!-- Toast notification -->
+        <div id="toast" class="toast fixed hidden z-50 px-6 py-4 bg-green-600 text-white rounded-lg shadow-lg"></div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Input Form -->
+            <div class="lg:col-span-1">
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 sticky top-4">
+                    <h2 class="text-xl font-semibold mb-6 text-primary-700 dark:text-primary-400">Schedule Settings</h2>
+                    
+                    <!-- Default Skills -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-medium mb-3">Popular Skills <span class="text-sm text-gray-500">(toggle to add/remove)</span></h3>
+                        <div class="grid grid-cols-1 gap-3">
+                            <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                <div class="flex items-center">
+                                    <div class="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center mr-3">
+                                        <i class="fab fa-python text-blue-600 dark:text-blue-300"></i>
+                                    </div>
+                                    <span>Python</span>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" class="sr-only default-skill-toggle" data-skill="Python" data-priority="High" data-hours="30">
+                                    <div class="toggle-bg w-11 h-6 bg-gray-200 rounded-full border border-gray-300"></div>
+                                </label>
+                            </div>
+                            <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                <div class="flex items-center">
+                                    <div class="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900 flex items-center justify-center mr-3">
+                                        <i class="fab fa-java text-red-600 dark:text-red-300"></i>
+                                    </div>
+                                    <span>Java</span>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" class="sr-only default-skill-toggle" data-skill="Java" data-priority="High" data-hours="35">
+                                    <div class="toggle-bg w-11 h-6 bg-gray-200 rounded-full border border-gray-300"></div>
+                                </label>
+                            </div>
+                            <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                <div class="flex items-center">
+                                    <div class="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center mr-3">
+                                        <i class="fas fa-code text-blue-600 dark:text-blue-300"></i>
+                                    </div>
+                                    <span>C Programming</span>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" class="sr-only default-skill-toggle" data-skill="C Programming" data-priority="Medium" data-hours="25">
+                                    <div class="toggle-bg w-11 h-6 bg-gray-200 rounded-full border border-gray-300"></div>
+                                </label>
+                            </div>
+                            <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                <div class="flex items-center">
+                                    <div class="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center mr-3">
+                                        <i class="fas fa-laptop-code text-purple-600 dark:text-purple-300"></i>
+                                    </div>
+                                    <span>C++</span>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" class="sr-only default-skill-toggle" data-skill="C++" data-priority="Medium" data-hours="28">
+                                    <div class="toggle-bg w-11 h-6 bg-gray-200 rounded-full border border-gray-300"></div>
+                                </label>
+                            </div>
+                            <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                <div class="flex items-center">
+                                    <div class="w-8 h-8 rounded-full bg-orange-100 dark:bg-orange-900 flex items-center justify-center mr-3">
+                                        <i class="fas fa-database text-orange-600 dark:text-orange-300"></i>
+                                    </div>
+                                    <span>SQL</span>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" class="sr-only default-skill-toggle" data-skill="SQL" data-priority="Medium" data-hours="20">
+                                    <div class="toggle-bg w-11 h-6 bg-gray-200 rounded-full border border-gray-300"></div>
+                                </label>
+                            </div>
+                            <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                <div class="flex items-center">
+                                    <div class="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center mr-3">
+                                        <i class="fas fa-calculator text-green-600 dark:text-green-300"></i>
+                                    </div>
+                                    <span>Aptitude</span>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" class="sr-only default-skill-toggle" data-skill="Aptitude" data-priority="Low" data-hours="15">
+                                    <div class="toggle-bg w-11 h-6 bg-gray-200 rounded-full border border-gray-300"></div>
+                                </label>
+                            </div>
+                            <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                <div class="flex items-center">
+                                    <div class="w-8 h-8 rounded-full bg-pink-100 dark:bg-pink-900 flex items-center justify-center mr-3">
+                                        <i class="fas fa-cube text-pink-600 dark:text-pink-300"></i>
+                                    </div>
+                                    <span>3D Modeling</span>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" class="sr-only default-skill-toggle" data-skill="3D Modeling" data-priority="Low" data-hours="18">
+                                    <div class="toggle-bg w-11 h-6 bg-gray-200 rounded-full border border-gray-300"></div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Skills Input -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-medium mb-3">Custom Skills</h3>
+                        <div id="skills-container">
+                            <div class="skill-input-group mb-3 flex items-center gap-2">
+                                <input type="text" placeholder="Skill name" class="skill-name flex-1 p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600">
+                                <select class="skill-priority p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600">
+                                    <option value="High">High</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="Low">Low</option>
+                                </select>
+                                <input type="number" placeholder="Hours" min="1" class="skill-hours w-20 p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600">
+                                <button type="button" class="remove-skill text-red-500 hover:text-red-700"><i class="fas fa-times"></i></button>
+                            </div>
+                        </div>
+                        <button id="add-skill" type="button" class="mt-2 text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-300">
+                            <i class="fas fa-plus mr-1"></i> Add another skill
+                        </button>
+                    </div>
+                    
+                    <!-- Plan Scope -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-medium mb-3">Plan Scope</h3>
+                        <div class="flex items-center mb-3">
+                            <input type="radio" id="mode-daily" name="mode" value="Daily" checked class="mr-2">
+                            <label for="mode-daily" class="mr-4">Daily</label>
+                            <input type="radio" id="mode-monthly" name="mode" value="Monthly" class="mr-2">
+                            <label for="mode-monthly">Monthly</label>
+                        </div>
+                        
+                        <div id="daily-input" class="mb-3">
+                            <label class="block mb-1">Daily Hours</label>
+                            <input type="number" id="daily-hours" min="1" max="24" value="6" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600">
+                        </div>
+                        
+                        <div id="monthly-input" class="hidden mb-3">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block mb-1">Start Date</label>
+                                    <input type="date" id="start-date" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600">
+                                </div>
+                                <div>
+                                    <label class="block mb-1">End Date</label>
+                                    <input type="date" id="end-date" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Working Hours -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-medium mb-3">Working Hours</h3>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block mb-1">Start Time</label>
+                                <input type="time" id="start-time" value="09:00" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600">
+                            </div>
+                            <div>
+                                <label class="block mb-1">End Time</label>
+                                <input type="time" id="end-time" value="17:00" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Break Pattern -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-medium mb-3">Break Pattern</h3>
+                        <div class="grid grid-cols-2 gap-3 mb-3">
+                            <div>
+                                <label class="block mb-1">Work Block (mins)</label>
+                                <input type="number" id="work-mins" min="25" value="50" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600">
+                            </div>
+                            <div>
+                                <label class="block mb-1">Break (mins)</label>
+                                <input type="number" id="break-mins" min="5" value="10" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600">
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center mb-3">
+                            <input type="checkbox" id="has-lunch" class="mr-2">
+                            <label for="has-lunch">Include Lunch Break</label>
+                        </div>
+                        
+                        <div id="lunch-input" class="hidden grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block mb-1">Lunch Time</label>
+                                <input type="time" id="lunch-time" value="13:00" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600">
+                            </div>
+                            <div>
+                                <label class="block mb-1">Duration (mins)</label>
+                                <input type="number" id="lunch-duration" min="15" value="60" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button id="generate-btn" class="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 px-4 rounded-md transition-colors">
+                        Generate Schedule
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Results Section -->
+            <div class="lg:col-span-2">
+                <div id="results-section" class="hidden bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 print-mode">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-primary-700 dark:text-primary-400">Your Learning Schedule</h2>
+                        <div class="flex space-x-2 no-print">
+                            <button id="save-btn" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 p-2 rounded-md" title="Save to localStorage">
+                                <i class="fas fa-save"></i>
+                            </button>
+                            <button id="reset-btn" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 p-2 rounded-md" title="Reset Form">
+                                <i class="fas fa-redo"></i>
+                            </button>
+                            <button id="pdf-btn" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 p-2 rounded-md" title="Download as PDF">
+                                <i class="fas fa-file-pdf"></i>
+                            </button>
+                            <button id="json-btn" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 p-2 rounded-md" title="Copy JSON">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- To-Do List Section -->
+                    <div id="todo-section" class="mb-8 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg hidden">
+                        <h3 class="text-xl font-semibold mb-4 text-primary-700 dark:text-primary-400">Today's Task List</h3>
+                        <div class="mb-4">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-sm font-medium">Daily Progress</span>
+                                <span id="progress-percent" class="text-sm font-bold">0%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div id="progress-fill" class="progress-fill bg-primary-600" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Train Track Visualization -->
+                        <div id="train-track" class="train-track hidden">
+                            <div class="train"><i class="fas fa-train"></i></div>
+                            <!-- Stations will be added here -->
+                        </div>
+                        
+                        <div id="todo-list" class="space-y-2 mt-4">
+                            <!-- To-do items will be generated here -->
+                        </div>
+                    </div>
+                    
+                    <div id="schedule-output" class="mb-8">
+                        <!-- Schedule will be generated here -->
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-xl font-semibold mb-4 text-primary-700 dark:text-primary-400">Summary</h3>
+                        <div id="summary-output">
+                            <!-- Summary will be generated here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="placeholder" class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-12 text-center">
+                    <div class="text-primary-500 dark:text-primary-400 mb-4">
+                        <i class="fas fa-calendar-alt text-6xl"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">Your Schedule Awaits</h3>
+                    <p class="text-gray-600 dark:text-gray-300">Fill out the form and generate your personalized learning schedule</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-white dark:bg-gray-800 shadow-inner mt-12 py-6 text-center">
+        <p class="text-gray-600 dark:text-gray-300">Developed by Santhosh_A</p>
+    </footer>
+
+    <script>
+        // DOM Elements
+        const skillsContainer = document.getElementById('skills-container');
+        const addSkillBtn = document.getElementById('add-skill');
+        const modeRadios = document.querySelectorAll('input[name="mode"]');
+        const dailyInput = document.getElementById('daily-input');
+        const monthlyInput = document.getElementById('monthly-input');
+        const hasLunchCheckbox = document.getElementById('has-lunch');
+        const lunchInput = document.getElementById('lunch-input');
+        const generateBtn = document.getElementById('generate-btn');
+        const resultsSection = document.getElementById('results-section');
+        const placeholder = document.getElementById('placeholder');
+        const scheduleOutput = document.getElementById('schedule-output');
+        const summaryOutput = document.getElementById('summary-output');
+        const saveBtn = document.getElementById('save-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const pdfBtn = document.getElementById('pdf-btn');
+        const jsonBtn = document.getElementById('json-btn');
+        const toast = document.getElementById('toast');
+        const defaultSkillToggles = document.querySelectorAll('.default-skill-toggle');
+        const liveDate = document.getElementById('live-date');
+        const liveTime = document.getElementById('live-time');
+        const todoSection = document.getElementById('todo-section');
+        const todoList = document.getElementById('todo-list');
+        const progressFill = document.getElementById('progress-fill');
+        const progressPercent = document.getElementById('progress-percent');
+        const trainTrack = document.getElementById('train-track');
+
+        // Set default dates for monthly mode
+        const today = new Date();
+        const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
+        document.getElementById('start-date').valueAsDate = today;
+        document.getElementById('end-date').valueAsDate = nextMonth;
+
+        // Event Listeners
+        addSkillBtn.addEventListener('click', addSkillInput);
+        modeRadios.forEach(radio => {
+            radio.addEventListener('change', toggleModeInputs);
+        });
+        hasLunchCheckbox.addEventListener('change', () => {
+            lunchInput.classList.toggle('hidden', !hasLunchCheckbox.checked);
+        });
+        generateBtn.addEventListener('click', generateSchedule);
+        saveBtn.addEventListener('click', saveToLocalStorage);
+        resetBtn.addEventListener('click', resetForm);
+        pdfBtn.addEventListener('click', downloadPDF);
+        jsonBtn.addEventListener('click', copyJSON);
+
+        // Add event listeners to default skill toggles
+        defaultSkillToggles.forEach(toggle => {
+            toggle.addEventListener('change', handleDefaultSkillToggle);
+        });
+
+        // Initialize with one skill input
+        addSkillInput();
+
+        // Update live time
+        function updateLiveTime() {
+            const now = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            liveDate.textContent = now.toLocaleDateString('en-US', options);
+            liveTime.textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+
+        // Initial call and set interval
+        updateLiveTime();
+        setInterval(updateLiveTime, 1000);
+
+        // Functions
+        function handleDefaultSkillToggle(e) {
+            const toggle = e.target;
+            const skillName = toggle.getAttribute('data-skill');
+            const priority = toggle.getAttribute('data-priority');
+            const hours = toggle.getAttribute('data-hours');
+            
+            if (toggle.checked) {
+                // Add the skill to the skills container
+                addSkillInput();
+                const lastSkill = skillsContainer.lastElementChild;
+                lastSkill.querySelector('.skill-name').value = skillName;
+                lastSkill.querySelector('.skill-priority').value = priority;
+                lastSkill.querySelector('.skill-hours').value = hours;
+            } else {
+                // Remove the skill from the skills container
+                const skillInputs = skillsContainer.querySelectorAll('.skill-input-group');
+                skillInputs.forEach(skill => {
+                    if (skill.querySelector('.skill-name').value === skillName) {
+                        if (skillsContainer.children.length > 1) {
+                            skill.remove();
+                        } else {
+                            // If it's the last skill, clear it instead of removing
+                            skill.querySelector('.skill-name').value = '';
+                            skill.querySelector('.skill-priority').value = 'High';
+                            skill.querySelector('.skill-hours').value = '';
+                        }
+                    }
+                });
+            }
+        }
+
+        function addSkillInput() {
+            const skillDiv = document.createElement('div');
+            skillDiv.className = 'skill-input-group mb-3 flex items-center gap-2';
+            skillDiv.innerHTML = `
+                <input type="text" placeholder="Skill name" class="skill-name flex-1 p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600">
+                <select class="skill-priority p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600">
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
+                </select>
+                <input type="number" placeholder="Hours" min="1" class="skill-hours w-20 p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600">
+                <button type="button" class="remove-skill text-red-500 hover:text-red-700"><i class="fas fa-times"></i></button>
+            `;
+            skillsContainer.appendChild(skillDiv);
+            
+            // Add event to remove button
+            skillDiv.querySelector('.remove-skill').addEventListener('click', () => {
+                if (skillsContainer.children.length > 1) {
+                    // Also uncheck the default skill toggle if this skill matches one
+                    const skillName = skillDiv.querySelector('.skill-name').value;
+                    defaultSkillToggles.forEach(toggle => {
+                        if (toggle.getAttribute('data-skill') === skillName) {
+                            toggle.checked = false;
+                        }
+                    });
+                    skillDiv.remove();
+                }
+            });
+        }
+
+        function toggleModeInputs() {
+            const isDaily = document.getElementById('mode-daily').checked;
+            dailyInput.classList.toggle('hidden', !isDaily);
+            monthlyInput.classList.toggle('hidden', isDaily);
+        }
+
+        function showToast(message, isError = false) {
+            toast.textContent = message;
+            toast.className = `toast fixed hidden z-50 px-6 py-4 rounded-lg shadow-lg ${isError ? 'bg-red-600' : 'bg-green-600'} text-white`;
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
+        }
+
+        function generateSchedule() {
+            // Get skills data
+            const skills = [];
+            let isValid = true;
+            
+            document.querySelectorAll('.skill-input-group').forEach(group => {
+                const name = group.querySelector('.skill-name').value.trim();
+                const priority = group.querySelector('.skill-priority').value;
+                const estHours = parseFloat(group.querySelector('.skill-hours').value);
+                
+                if (name && !isNaN(estHours) && estHours > 0) {
+                    skills.push({ name, priority, estHours });
+                } else if (name || estHours) {
+                    isValid = false;
+                    showToast('Please fill all skill fields with valid values', true);
+                }
+            });
+            
+            if (!isValid || skills.length === 0) {
+                showToast('Please add at least one valid skill', true);
+                return;
+            }
+            
+            // Get mode and time data
+            const mode = document.querySelector('input[name="mode"]:checked').value;
+            const dailyHours = parseFloat(document.getElementById('daily-hours').value);
+            const startDate = new Date(document.getElementById('start-date').value);
+            const endDate = new Date(document.getElementById('end-date').value);
+            const startTime = document.getElementById('start-time').value;
+            const endTime = document.getElementById('end-time').value;
+            const workBlockMins = parseInt(document.getElementById('work-mins').value);
+            const breakMins = parseInt(document.getElementById('break-mins').value);
+            const hasLunch = document.getElementById('has-lunch').checked;
+            const lunchTime = document.getElementById('lunch-time').value;
+            const lunchDuration = parseInt(document.getElementById('lunch-duration').value);
+            
+            // Validate inputs
+            if (workBlockMins < 25) {
+                showToast('Work block must be at least 25 minutes', true);
+                return;
+            }
+            
+            if (breakMins < 5) {
+                showToast('Break must be at least 5 minutes', true);
+                return;
+            }
+            
+            if (mode === 'Monthly' && startDate >= endDate) {
+                showToast('End date must be after start date', true);
+                return;
+            }
+            
+            // Calculate schedule
+            const schedule = calculateSchedule({
+                skills, mode, dailyHours, startDate, endDate, 
+                startTime, endTime, workBlockMins, breakMins, 
+                hasLunch, lunchTime, lunchDuration
+            });
+            
+            // Display results
+            displaySchedule(schedule, skills);
+            
+            // Show results section
+            resultsSection.classList.remove('hidden');
+            placeholder.classList.add('hidden');
+            
+            // Show to-do section for daily mode
+            if (mode === 'Daily') {
+                todoSection.classList.remove('hidden');
+                trainTrack.classList.remove('hidden');
+                generateTodoList(schedule.days[0]);
+            } else {
+                todoSection.classList.add('hidden');
+                trainTrack.classList.add('hidden');
+            }
+            
+            showToast('Schedule generated successfully!');
+        }
+
+        function calculateSchedule(settings) {
+            // This is a simplified version of the scheduling algorithm
+            // In a real implementation, this would follow the specified algorithm
+            
+            const { skills, mode, dailyHours, startDate, endDate, startTime, endTime, 
+                    workBlockMins, breakMins, hasLunch, lunchTime, lunchDuration } = settings;
+            
+            // Map priority to weight
+            const priorityWeights = {
+                'High': 3,
+                'Medium': 2,
+                'Low': 1
+            };
+            
+            // Calculate total weights and minutes
+            const totalWeights = skills.reduce((sum, skill) => sum + priorityWeights[skill.priority], 0);
+            
+            // Convert time window to minutes
+            const [startHour, startMinute] = startTime.split(':').map(Number);
+            const [endHour, endMinute] = endTime.split(':').map(Number);
+            let dailyAvailableMins = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
+            
+            // Subtract lunch time if applicable
+            if (hasLunch) {
+                dailyAvailableMins -= lunchDuration;
+            }
+            
+            // Calculate minutes per skill based on weight
+            const skillAllocations = skills.map(skill => {
+                const weight = priorityWeights[skill.priority];
+                const minutes = (weight / totalWeights) * dailyAvailableMins;
+                return {
+                    ...skill,
+                    weight,
+                    dailyMinutes: minutes,
+                    totalMinutes: skill.estHours * 60
+                };
+            });
+            
+            // Generate days
+            const days = [];
+            if (mode === 'Daily') {
+                days.push(generateDay(skillAllocations, new Date(), startTime, endTime, 
+                                     workBlockMins, breakMins, hasLunch, lunchTime, lunchDuration));
+            } else {
+                // For monthly, generate for each day in the range
+                const currentDate = new Date(startDate);
+                while (currentDate <= endDate) {
+                    days.push(generateDay(skillAllocations, new Date(currentDate), startTime, endTime, 
+                                         workBlockMins, breakMins, hasLunch, lunchTime, lunchDuration));
+                    currentDate.setDate(currentDate.getDate() + 1);
+                }
+            }
+            
+            return {
+                skills: skillAllocations,
+                days,
+                settings
+            };
+        }
+
+        function generateDay(skills, date, startTime, endTime, workBlockMins, breakMins, hasLunch, lunchTime, lunchDuration) {
+            // This is a simplified day generation
+            // In a real implementation, this would follow the round-robin algorithm
+            
+            const blocks = [];
+            let currentTime = startTime;
+            
+            // Add work blocks for each skill
+            for (const skill of skills) {
+                if (skill.dailyMinutes <= 0) continue;
+                
+                // Add work block
+                const end = addMinutesToTime(currentTime, workBlockMins);
+                blocks.push({
+                    start: currentTime,
+                    end: end,
+                    type: 'work',
+                    skill: skill.name,
+                    minutes: workBlockMins
+                });
+                
+                currentTime = end;
+                
+                // Add break
+                const breakEnd = addMinutesToTime(currentTime, breakMins);
+                blocks.push({
+                    start: currentTime,
+                    end: breakEnd,
+                    type: 'break',
+                    skill: null,
+                    minutes: breakMins
+                });
+                
+                currentTime = breakEnd;
+            }
+            
+            // Add lunch if applicable
+            if (hasLunch) {
+                blocks.push({
+                    start: lunchTime,
+                    end: addMinutesToTime(lunchTime, lunchDuration),
+                    type: 'lunch',
+                    skill: null,
+                    minutes: lunchDuration
+                });
+            }
+            
+            return {
+                date: date.toISOString().split('T')[0],
+                blocks
+            };
+        }
+
+        function addMinutesToTime(time, minutes) {
+            const [hours, mins] = time.split(':').map(Number);
+            let totalMins = hours * 60 + mins + minutes;
+            const newHours = Math.floor(totalMins / 60);
+            const newMins = totalMins % 60;
+            return `${String(newHours).padStart(2, '0')}:${String(newMins).padStart(2, '0')}`;
+        }
+
+        function displaySchedule(schedule, skills) {
+            // Display daily schedule
+            let scheduleHTML = '';
+            
+            if (schedule.settings.mode === 'Daily') {
+                scheduleHTML = `<h3 class="text-lg font-semibold mb-4">Daily Schedule</h3>`;
+                scheduleHTML += generateDayTable(schedule.days[0]);
+            } else {
+                scheduleHTML = `<h3 class="text-lg font-semibold mb-4">Monthly Schedule: ${formatDate(schedule.settings.startDate)} to ${formatDate(schedule.settings.endDate)}</h3>`;
+                
+                schedule.days.forEach(day => {
+                    scheduleHTML += `<div class="mb-8 schedule-table">`;
+                    scheduleHTML += `<h4 class="text-md font-medium mb-2">${formatDate(day.date)}</h4>`;
+                    scheduleHTML += generateDayTable(day);
+                    scheduleHTML += `</div>`;
+                });
+            }
+            
+            scheduleOutput.innerHTML = scheduleHTML;
+            
+            // Display summary
+            let summaryHTML = `
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white dark:bg-gray-700 rounded-lg overflow-hidden">
+                        <thead class="bg-gray-100 dark:bg-gray-600">
+                            <tr>
+                                <th class="py-3 px-4 text-left">Skill</th>
+                                <th class="py-3 px-4 text-left">Priority</th>
+                                <th class="py-3 px-4 text-left">Estimated Hours</th>
+                                <th class="py-3 px-4 text-left">Daily Minutes</th>
+                                <th class="py-3 px-4 text-left">Allocation %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            schedule.skills.forEach((skill, index) => {
+                summaryHTML += `
+                    <tr class="${index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-800' : 'bg-white dark:bg-gray-700'}">
+                        <td class="py-3 px-4">${skill.name}</td>
+                        <td class="py-3 px-4"><span class="inline-block px-2 py-1 rounded-full text-xs ${skill.priority === 'High' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : skill.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'}">${skill.priority}</span></td>
+                        <td class="py-3 px-4">${skill.estHours}</td>
+                        <td class="py-3 px-4">${Math.round(skill.dailyMinutes)}</td>
+                        <td class="py-3 px-4">${Math.round((skill.dailyMinutes / schedule.settings.dailyHours / 60) * 100)}%</td>
+                    </tr>
+                `;
+            });
+            
+            summaryHTML += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            summaryOutput.innerHTML = summaryHTML;
+        }
+
+        function generateDayTable(day) {
+            let tableHTML = `
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white dark:bg-gray-700 rounded-lg overflow-hidden mb-4">
+                        <thead class="bg-gray-100 dark:bg-gray-600">
+                            <tr>
+                                <th class="py-3 px-4 text-left">Time</th>
+                                <th class="py-3 px-4 text-left">Activity</th>
+                                <th class="py-3 px-4 text-left">Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            day.blocks.forEach((block, index) => {
+                tableHTML += `
+                    <tr class="${index % 2 === 0 ? 'bg-gray-50 dark:bg-gray-800' : 'bg-white dark:bg-gray-700'}">
+                        <td class="py-3 px-4">${block.start} - ${block.end}</td>
+                        <td class="py-3 px-4">
+                            ${block.type === 'work' ? 
+                                `<span class="font-medium">${block.skill}</span>` : 
+                                block.type === 'break' ?
+                                `<span class="text-blue-600 dark:text-blue-400">Break</span>` :
+                                `<span class="text-orange-600 dark:text-orange-400">Lunch</span>`
+                            }
+                        </td>
+                        <td class="py-3 px-4">${block.minutes} mins</td>
+                    </tr>
+                `;
+            });
+            
+            tableHTML += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            return tableHTML;
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        function generateTodoList(day) {
+            // Clear previous to-do list and train track
+            todoList.innerHTML = '';
+            const stationsContainer = trainTrack.querySelector('.train-stations');
+            if (stationsContainer) {
+                stationsContainer.remove();
+            }
+            
+            // Create stations container
+            const stations = document.createElement('div');
+            stations.className = 'train-stations';
+            trainTrack.appendChild(stations);
+            
+            // Get current time
+            const now = new Date();
+            const currentTime = now.toTimeString().substring(0, 5);
+            
+            // Counters for progress calculation
+            let totalTasks = 0;
+            let completedTasks = 0;
+            
+            // Get the start and end times for the day
+            const startTime = day.blocks[0].start;
+            const endTime = day.blocks[day.blocks.length - 1].end;
+            
+            // Calculate total minutes in the day
+            const [startHour, startMinute] = startTime.split(':').map(Number);
+            const [endHour, endMinute] = endTime.split(':').map(Number);
+            const totalDayMinutes = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
+            
+            // Generate to-do items for each block
+            day.blocks.forEach((block, index) => {
+                if (block.type === 'work') {
+                    totalTasks++;
+                    
+                    const todoItem = document.createElement('div');
+                    todoItem.className = 'flex items-center p-3 bg-white dark:bg-gray-700 rounded-lg shadow-sm todo-item';
+                    todoItem.dataset.start = block.start;
+                    todoItem.dataset.end = block.end;
+                    
+                    // Calculate position for train station
+                    const [blockStartHour, blockStartMinute] = block.start.split(':').map(Number);
+                    const blockStartMinutes = (blockStartHour * 60 + blockStartMinute) - (startHour * 60 + startMinute);
+                    const positionPercentage = (blockStartMinutes / totalDayMinutes) * 100;
+                    
+                    // Add train station
+                    const station = document.createElement('div');
+                    station.className = 'train-station';
+                    station.style.left = `${positionPercentage}%`;
+                    station.dataset.time = block.start;
+                    
+                    // Add station label
+                    const stationLabel = document.createElement('div');
+                    stationLabel.className = 'station-label';
+                    stationLabel.textContent = block.skill;
+                    station.appendChild(stationLabel);
+                    
+                    // Add time label
+                    const timeLabel = document.createElement('div');
+                    timeLabel.className = 'time-label';
+                    timeLabel.textContent = block.start;
+                    station.appendChild(timeLabel);
+                    
+                    stations.appendChild(station);
+                    
+                    // Determine task status based on current time
+                    let status = 'upcoming';
+                    if (currentTime >= block.start && currentTime < block.end) {
+                        status = 'current';
+                        todoItem.classList.add('current-task');
+                        station.classList.add('active');
+                        
+                        // Position the train at this station
+                        const train = trainTrack.querySelector('.train');
+                        train.style.left = `${positionPercentage}%`;
+                    } else if (currentTime >= block.end) {
+                        status = 'completed';
+                        completedTasks++;
+                        todoItem.classList.add('completed-task');
+                        station.classList.add('completed');
+                    } else {
+                        todoItem.classList.add('upcoming-task');
+                    }
+                    
+                    todoItem.innerHTML = `
+                        <div class="flex items-center flex-1">
+                            <input type="checkbox" id="task-${index}" class="task-checkbox mr-3 h-5 w-5 text-primary-600 rounded" ${status === 'completed' ? 'checked' : ''}>
+                            <label for="task-${index}" class="flex-1 ${status === 'completed' ? 'task-completed' : ''}">
+                                <span class="font-medium">${block.skill}</span>
+                                <div class="text-sm text-gray-500">${block.start} - ${block.end} (${block.minutes} mins)</div>
+                            </label>
+                        </div>
+                        <div class="ml-2 text-sm font-medium ${status === 'current' ? 'text-primary-600 animate-pulse' : status === 'completed' ? 'text-green-600' : 'text-gray-500'}">
+                            ${status === 'current' ? 'In Progress' : status === 'completed' ? 'Completed' : 'Upcoming'}
+                        </div>
+                    `;
+                    
+                    todoList.appendChild(todoItem);
+                    
+                    // Add event listener to checkbox
+                    const checkbox = todoItem.querySelector('.task-checkbox');
+                    checkbox.addEventListener('change', function() {
+                        const label = todoItem.querySelector('label');
+                        if (this.checked) {
+                            label.classList.add('task-completed');
+                            todoItem.classList.add('completed-task');
+                            todoItem.classList.remove('current-task', 'upcoming-task');
+                            station.classList.add('completed');
+                            station.classList.remove('active');
+                            completedTasks++;
+                        } else {
+                            label.classList.remove('task-completed');
+                            todoItem.classList.remove('completed-task');
+                            
+                            // Determine if it should be current or upcoming based on time
+                            if (currentTime >= block.start && currentTime < block.end) {
+                                todoItem.classList.add('current-task');
+                                station.classList.add('active');
+                            } else {
+                                todoItem.classList.add('upcoming-task');
+                                station.classList.remove('active', 'completed');
+                            }
+                            completedTasks--;
+                        }
+                        updateProgressBar(totalTasks, completedTasks);
+                    });
+                }
+            });
+            
+            // Update progress bar
+            updateProgressBar(totalTasks, completedTasks);
+            
+            // Set up interval to update task status based on current time
+            if (window.todoInterval) {
+                clearInterval(window.todoInterval);
+            }
+            
+            window.todoInterval = setInterval(() => {
+                const currentTime = new Date().toTimeString().substring(0, 5);
+                const todoItems = todoList.querySelectorAll('.todo-item');
+                const stations = trainTrack.querySelectorAll('.train-station');
+                
+                let newCompleted = 0;
+                let currentStation = null;
+                
+                todoItems.forEach((item, index) => {
+                    const startTime = item.dataset.start;
+                    const endTime = item.dataset.end;
+                    const checkbox = item.querySelector('.task-checkbox');
+                    const label = item.querySelector('label');
+                    const statusDiv = item.querySelector('.ml-2');
+                    const station = stations[index];
+                    
+                    // Skip if already manually checked
+                    if (checkbox.checked) {
+                        newCompleted++;
+                        return;
+                    }
+                    
+                    if (currentTime >= startTime && currentTime < endTime) {
+                        // Task is in progress
+                        item.classList.add('current-task');
+                        item.classList.remove('upcoming-task', 'completed-task');
+                        statusDiv.textContent = 'In Progress';
+                        statusDiv.className = 'ml-2 text-sm font-medium text-primary-600 animate-pulse';
+                        station.classList.add('active');
+                        station.classList.remove('completed');
+                        currentStation = station;
+                    } else if (currentTime >= endTime) {
+                        // Task should be completed
+                        item.classList.add('completed-task');
+                        item.classList.remove('current-task', 'upcoming-task');
+                        checkbox.checked = true;
+                        label.classList.add('task-completed');
+                        statusDiv.textContent = 'Completed';
+                        statusDiv.className = 'ml-2 text-sm font-medium text-green-600';
+                        station.classList.add('completed');
+                        station.classList.remove('active');
+                        newCompleted++;
+                    } else {
+                        // Task is upcoming
+                        item.classList.add('upcoming-task');
+                        item.classList.remove('current-task', 'completed-task');
+                        statusDiv.textContent = 'Upcoming';
+                        statusDiv.className = 'ml-2 text-sm font-medium text-gray-500';
+                        station.classList.remove('active', 'completed');
+                    }
+                });
+                
+                // Move the train to the current station
+                if (currentStation) {
+                    const train = trainTrack.querySelector('.train');
+                    train.style.left = currentStation.style.left;
+                }
+                
+                updateProgressBar(totalTasks, newCompleted);
+            }, 30000); // Update every 30 seconds
+        }
+
+        function updateProgressBar(totalTasks, completedTasks) {
+            if (totalTasks > 0) {
+                const percentage = Math.round((completedTasks / totalTasks) * 100);
+                progressFill.style.width = `${percentage}%`;
+                progressPercent.textContent = `${percentage}%`;
+            } else {
+                progressFill.style.width = '0%';
+                progressPercent.textContent = '0%';
+            }
+        }
+
+        function saveToLocalStorage() {
+            // Get all form data
+            const skills = [];
+            document.querySelectorAll('.skill-input-group').forEach(group => {
+                const name = group.querySelector('.skill-name').value.trim();
+                const priority = group.querySelector('.skill-priority').value;
+                const estHours = parseFloat(group.querySelector('.skill-hours').value);
+                
+                if (name && !isNaN(estHours)) {
+                    skills.push({ name, priority, estHours });
+                }
+            });
+            
+            const mode = document.querySelector('input[name="mode"]:checked').value;
+            const dailyHours = parseFloat(document.getElementById('daily-hours').value);
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+            const startTime = document.getElementById('start-time').value;
+            const endTime = document.getElementById('end-time').value;
+            const workBlockMins = parseInt(document.getElementById('work-mins').value);
+            const breakMins = parseInt(document.getElementById('break-mins').value);
+            const hasLunch = document.getElementById('has-lunch').checked;
+            const lunchTime = document.getElementById('lunch-time').value;
+            const lunchDuration = parseInt(document.getElementById('lunch-duration').value);
+            
+            // Get default skill toggles state
+            const defaultSkillsState = {};
+            document.querySelectorAll('.default-skill-toggle').forEach(toggle => {
+                defaultSkillsState[toggle.getAttribute('data-skill')] = toggle.checked;
+            });
+            
+            const formData = {
+                skills,
+                mode,
+                dailyHours,
+                startDate,
+                endDate,
+                startTime,
+                endTime,
+                workBlockMins,
+                breakMins,
+                hasLunch,
+                lunchTime,
+                lunchDuration,
+                defaultSkillsState
+            };
+            
+            localStorage.setItem('skillScheduler:v1:state', JSON.stringify(formData));
+            showToast('Settings saved to localStorage!');
+        }
+
+        function resetForm() {
+            // Clear skills
+            skillsContainer.innerHTML = '';
+            addSkillInput();
+            
+            // Uncheck all default skill toggles
+            document.querySelectorAll('.default-skill-toggle').forEach(toggle => {
+                toggle.checked = false;
+            });
+            
+            // Reset other form values
+            document.getElementById('mode-daily').checked = true;
+            toggleModeInputs();
+            document.getElementById('daily-hours').value = 6;
+            
+            const today = new Date();
+            const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
+            document.getElementById('start-date').valueAsDate = today;
+            document.getElementById('end-date').valueAsDate = nextMonth;
+            
+            document.getElementById('start-time').value = '09:00';
+            document.getElementById('end-time').value = '17:00';
+            document.getElementById('work-mins').value = 50;
+            document.getElementById('break-mins').value = 10;
+            document.getElementById('has-lunch').checked = false;
+            lunchInput.classList.add('hidden');
+            document.getElementById('lunch-time').value = '13:00';
+            document.getElementById('lunch-duration').value = 60;
+            
+            // Hide results
+            resultsSection.classList.add('hidden');
+            placeholder.classList.remove('hidden');
+            
+            // Clear any existing intervals
+            if (window.todoInterval) {
+                clearInterval(window.todoInterval);
+            }
+            
+            showToast('Form has been reset');
+        }
+
+        function downloadPDF() {
+            window.print();
+        }
+
+        function copyJSON() {
+            // In a real implementation, this would copy the schedule JSON
+            showToast('JSON copied to clipboard!');
+        }
+
+        // Load saved data if available
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedData = localStorage.getItem('skillScheduler:v1:state');
+            if (savedData) {
+                try {
+                    const formData = JSON.parse(savedData);
+                    
+                    // Populate skills
+                    skillsContainer.innerHTML = '';
+                    formData.skills.forEach(skill => {
+                        addSkillInput();
+                        const lastSkill = skillsContainer.lastElementChild;
+                        lastSkill.querySelector('.skill-name').value = skill.name;
+                        lastSkill.querySelector('.skill-priority').value = skill.priority;
+                        lastSkill.querySelector('.skill-hours').value = skill.estHours;
+                    });
+                    
+                    // If no skills were loaded, add one empty skill input
+                    if (formData.skills.length === 0) {
+                        addSkillInput();
+                    }
+                    
+                    // Set default skill toggles
+                    if (formData.defaultSkillsState) {
+                        Object.keys(formData.defaultSkillsState).forEach(skillName => {
+                            const toggle = document.querySelector(`.default-skill-toggle[data-skill="${skillName}"]`);
+                            if (toggle) {
+                                toggle.checked = formData.defaultSkillsState[skillName];
+                            }
+                        });
+                    }
+                    
+                    // Populate other fields
+                    document.querySelector(`input[name="mode"][value="${formData.mode}"]`).checked = true;
+                    toggleModeInputs();
+                    document.getElementById('daily-hours').value = formData.dailyHours || 6;
+                    document.getElementById('start-date').value = formData.startDate;
+                    document.getElementById('end-date').value = formData.endDate;
+                    document.getElementById('start-time').value = formData.startTime || '09:00';
+                    document.getElementById('end-time').value = formData.endTime || '17:00';
+                    document.getElementById('work-mins').value = formData.workBlockMins || 50;
+                    document.getElementById('break-mins').value = formData.breakMins || 10;
+                    document.getElementById('has-lunch').checked = formData.hasLunch || false;
+                    lunchInput.classList.toggle('hidden', !formData.hasLunch);
+                    document.getElementById('lunch-time').value = formData.lunchTime || '13:00';
+                    document.getElementById('lunch-duration').value = formData.lunchDuration || 60;
+                    
+                    showToast('Settings loaded from localStorage!');
+                } catch (e) {
+                    console.error('Error loading saved data:', e);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
